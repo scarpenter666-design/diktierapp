@@ -377,6 +377,15 @@ $('btn-record').addEventListener('click', async () => {
 let asrPipeline = null;
 let asrModelId = null;
 
+function refreshWhisperStatus() {
+  const ready = localStorage.getItem('diktierapp:whisper:' + $('whisper-model').value) === 'ready';
+  $('whisper-download-info').textContent = ready
+    ? 'Dieses Whisper-Modell wurde bereits heruntergeladen und ist offline bereit.'
+    : 'Noch nicht geladen. Einmalig per WLAN herunterladen; danach offline nutzbar.';
+  $('btn-download-whisper').textContent = ready ? 'Whisper bereits geladen' : 'Whisper jetzt herunterladen';
+  $('btn-download-whisper').disabled = ready;
+}
+
 async function loadWhisper() {
   const modelId = $('whisper-model').value;
   if (asrPipeline && asrModelId === modelId) return asrPipeline;
@@ -397,9 +406,8 @@ async function loadWhisper() {
   });
   asrModelId = modelId;
   $('dl-progress').classList.add('hidden');
-  $('whisper-download-info').textContent = 'Whisper ist geladen und offline bereit.';
-  $('btn-download-whisper').textContent = 'Whisper geladen';
-  $('btn-download-whisper').disabled = true;
+  localStorage.setItem('diktierapp:whisper:' + modelId, 'ready');
+  refreshWhisperStatus();
   status('');
   return asrPipeline;
 }
@@ -407,9 +415,7 @@ async function loadWhisper() {
 $('whisper-model').addEventListener('change', () => {
   asrPipeline = null;
   asrModelId = null;
-  $('whisper-download-info').textContent = 'Modellwahl geaendert. Dieses Modell noch herunterladen.';
-  $('btn-download-whisper').textContent = 'Whisper jetzt herunterladen';
-  $('btn-download-whisper').disabled = false;
+  refreshWhisperStatus();
 });
 
 $('btn-download-whisper').addEventListener('click', async () => {
@@ -424,6 +430,8 @@ $('btn-download-whisper').addEventListener('click', async () => {
     toast('Whisper-Download fehlgeschlagen');
   }
 });
+
+refreshWhisperStatus();
 
 async function transcribe(audioBlob) {
   try {
@@ -482,6 +490,15 @@ function toMono16kHz(audioBuffer) {
 let llmEngine = null;
 const LLM_MODEL = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 
+function refreshLlmStatus() {
+  const ready = localStorage.getItem('diktierapp:llm') === 'ready';
+  $('llm-download-info').textContent = ready
+    ? 'Das lokale KI-Modell wurde bereits heruntergeladen und ist offline bereit.'
+    : 'Noch nicht geladen. Wird nur fuer Zusammenfassung und Protokolle gebraucht.';
+  $('btn-download-llm').textContent = ready ? 'KI-Modell bereits geladen' : 'KI-Modell jetzt herunterladen (~1 GB)';
+  $('btn-download-llm').disabled = ready;
+}
+
 async function loadLlm() {
   if (llmEngine) return llmEngine;
   if (!navigator.gpu) {
@@ -497,9 +514,8 @@ async function loadLlm() {
     },
   });
   $('dl-progress').classList.add('hidden');
-  $('llm-download-info').textContent = 'KI-Modell ist geladen und offline bereit.';
-  $('btn-download-llm').textContent = 'KI-Modell geladen';
-  $('btn-download-llm').disabled = true;
+  localStorage.setItem('diktierapp:llm', 'ready');
+  refreshLlmStatus();
   status('');
   return llmEngine;
 }
@@ -517,6 +533,8 @@ $('btn-download-llm').addEventListener('click', async () => {
   }
 });
 
+refreshLlmStatus();
+
 async function runPrompt(prompt) {
   const engine = await loadLlm();
   const res = await engine.chat.completions.create({
@@ -533,7 +551,29 @@ const SUMMARIZE_PROMPT = (text) =>
 const PROTOCOL_PROMPT = (text) =>
   'Erstelle aus dem folgenden deutschen Diktat ein Protokoll in exakt dieser Markdown-Struktur:\n' +
   '# <Titel>\n## Thema\n## Kernaussagen\n## Entscheidungen\n## To-dos\n' +
-  'Verwende nur Informationen aus dem Text. Wenn eine Sektion keine Inhalte hat, schreibe "-". Antworte nur mit dem Protokoll.\n\nText:\n' + text;
+  'Jede Sektion muss mindestens einen Inhalt haben. Fuer ein Ein-Wort-Diktat wie "Test" lautet Thema "Test" und Kernaussagen enthalten "Test". Wenn keine Entscheidung oder Aufgabe genannt wurde, schreibe dort "- Keine explizite Entscheidung genannt." bzw. "- Keine Aufgabe genannt.". Antworte nur mit dem Protokoll.\n\nText:\n' + text;
+
+function ensureProtocolContent(markdown, rawText) {
+  const fallback = {
+    'Thema': rawText.slice(0, 140),
+    'Kernaussagen': '- ' + rawText,
+    'Entscheidungen': '- Keine explizite Entscheidung genannt.',
+    'To-dos': '- Keine Aufgabe genannt.',
+  };
+  const lines = String(markdown || '').trim().split('\n');
+  for (const [heading, content] of Object.entries(fallback)) {
+    const start = lines.findIndex((line) => line.trim() === '## ' + heading);
+    if (start === -1) {
+      lines.push('', '## ' + heading, content);
+      continue;
+    }
+    let end = start + 1;
+    while (end < lines.length && !lines[end].trim().startsWith('## ')) end++;
+    const hasContent = lines.slice(start + 1, end).some((line) => line.trim());
+    if (!hasContent) lines.splice(start + 1, 0, content);
+  }
+  return lines.join('\n');
+}
 
 // ---------- Ergebnis ----------
 let currentResult = null;
@@ -559,7 +599,7 @@ $('btn-protocol').addEventListener('click', async () => {
   if (!text) { toast('Kein Text fuer ein Protokoll'); return; }
   setBusy(true);
   try {
-    const md = await runPrompt(PROTOCOL_PROMPT(text));
+    const md = ensureProtocolContent(await runPrompt(PROTOCOL_PROMPT(text)), text);
     const m = md.match(/^#\s+(.+)$/m);
     setResult(m ? m[1] : 'Protokoll', md);
     toast('Protokoll erstellt');
