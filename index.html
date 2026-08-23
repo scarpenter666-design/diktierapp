@@ -154,6 +154,7 @@ textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-2); 
     <input id="entry-title" class="title-input" type="text" placeholder="Titel des Eintrags">
     <article id="result-content" class="result-content"></article>
     <div class="action-row">
+      <button id="btn-play-result" class="btn btn-secondary hidden">Aufnahme abspielen</button>
       <button id="btn-export-md" class="btn">Markdown exportieren</button>
       <button id="btn-export-html" class="btn btn-secondary">HTML exportieren</button>
       <button id="btn-export-pdf" class="btn btn-secondary">PDF (Drucken)</button>
@@ -294,6 +295,7 @@ let recStart = 0;
 let timerHandle = null;
 let lastAudioBlob = null;
 let audioElement = null;
+let audioObjectUrl = null;
 
 function updatePlayBar() {
   const bar = $('play-bar');
@@ -317,10 +319,14 @@ $('btn-play').addEventListener('click', () => {
     audioElement = new Audio();
     audioElement.onended = () => { $('btn-play').textContent = '\u25B6'; };
   }
-  audioElement.src = URL.createObjectURL(lastAudioBlob);
+  if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+  audioObjectUrl = URL.createObjectURL(lastAudioBlob);
+  audioElement.src = audioObjectUrl;
   audioElement.play();
   $('btn-play').textContent = '\u23F8';
 });
+
+$('btn-play-result').addEventListener('click', () => $('btn-play').click());
 
 $('btn-record').addEventListener('click', async () => {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -501,6 +507,7 @@ function setResult(title, markdown) {
   currentResult = { title, markdown };
   $('entry-title').value = title;
   $('result-content').innerHTML = renderMarkdownLite(markdown);
+  $('btn-play-result').classList.toggle('hidden', !lastAudioBlob);
   show('view-result');
 }
 
@@ -525,8 +532,10 @@ $('btn-save').addEventListener('click', async () => {
     transcript: text,
     resultTitle: currentResult ? currentResult.title : '',
     resultMd: currentResult ? currentResult.markdown : '',
+    // Blob wird direkt in IndexedDB gespeichert: keine Cloud, auch nach App-Neustart abspielbar.
+    audio: lastAudioBlob,
   });
-  toast('Gespeichert');
+  toast(lastAudioBlob ? 'Eintrag mit Aufnahme gespeichert' : 'Eintrag gespeichert');
 });
 
 async function renderHistory() {
@@ -543,6 +552,8 @@ async function renderHistory() {
     meta.querySelector('.entry-date').textContent = new Date(e.createdAt).toLocaleString('de-DE');
     meta.addEventListener('click', () => {
       $('transcript').value = e.transcript || '';
+      lastAudioBlob = e.audio instanceof Blob ? e.audio : null;
+      updatePlayBar();
       setResult(e.resultTitle || e.title, e.resultMd || '');
       show('view-result');
     });
