@@ -1,7 +1,7 @@
 // Service Worker: App-Shell offline verfuegbar machen.
 // Modelldateien (HuggingFace/jsDelivr) werden vom Browser-Cache bzw. Cache Storage
 // der Bibliotheken selbst gehalten und bewusst nicht hier dupliziert.
-const CACHE = 'diktierapp-v1';
+const CACHE = 'diktierapp-v2';
 const ASSETS = [
   './index.html',
   './styles.css',

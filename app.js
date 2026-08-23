@@ -4,6 +4,12 @@ import { buildMarkdown, buildHtml } from './export.js';
 
 const $ = (id) => document.getElementById(id);
 
+function status(msg) {
+  const el = $('model-status');
+  el.textContent = msg;
+  el.classList.toggle('hidden', !msg);
+}
+
 // ---------- Ansichten ----------
 const views = ['view-record', 'view-result', 'view-history', 'view-settings'];
 function show(viewId) {
