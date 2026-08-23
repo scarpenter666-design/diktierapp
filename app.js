@@ -306,4 +306,9 @@ function safeName(s) {
 // ---------- Service Worker ----------
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('service-worker.js');
+  // Alle 60 Sekunden auf Updates pruefen; neues SW-Update sofort aktivieren.
+  setInterval(() => {
+    navigator.serviceWorker.getRegistration().then((reg) => reg && reg.update());
+  }, 60000);
+  navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
 }

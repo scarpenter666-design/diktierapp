@@ -26,6 +26,11 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// Update-Check: bei jeder Navigation pruefen, ob service-worker.js sich geaendert hat.
+self.addEventListener('message', (e) => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   // App-Shell: cache-first. Externe CDNs (Modelle/Bibliotheken): network-first mit Cache-Fallback.
