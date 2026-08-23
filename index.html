@@ -85,7 +85,33 @@
 </nav>
 
 <div id="toast" class="toast hidden"></div>
+<div id="errbox" class="errbox hidden"></div>
 
+<script>
+// Diagnose-Falle: sichtbare Fehlermeldung, falls das App-Modul nicht startet.
+window.addEventListener('error', function (e) {
+  var box = document.getElementById('errbox');
+  if (!box || window.__appReady) return;
+  box.classList.remove('hidden');
+  box.textContent = 'Fehler: ' + (e.message || e.type);
+});
+window.addEventListener('unhandledrejection', function (e) {
+  var box = document.getElementById('errbox');
+  if (!box || window.__appReady) return;
+  box.classList.remove('hidden');
+  box.textContent = 'Fehler: ' + (e.reason && e.reason.message ? e.reason.message : e.reason);
+});
+setTimeout(function () {
+  if (!window.__appReady) {
+    var box = document.getElementById('errbox');
+    if (box) {
+      box.classList.remove('hidden');
+      box.innerHTML = 'App-Skript nicht geladen (vermutlich Netzwerk/Cache).<br>' +
+        '<button onclick="location.reload(true)" style="margin-top:8px;padding:10px 16px;font-size:1rem;">Neu laden</button>';
+    }
+  }
+}, 5000);
+</script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

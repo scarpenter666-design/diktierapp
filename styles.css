@@ -119,6 +119,11 @@ textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-2); 
 }
 
 .hidden { display: none !important; }
+.errbox {
+  position: fixed; top: 12px; left: 12px; right: 12px; z-index: 100;
+  background: #3a1420; border: 1px solid var(--danger); color: #ffd9d9;
+  padding: 12px; border-radius: var(--radius); font-size: 0.9rem;
+}
 .hint { margin-top: 8px; font-size: 0.85rem; color: var(--text-dim); }
 .app-info { margin-top: 24px; text-align: center; font-size: 0.8rem; color: var(--text-dim); }
 

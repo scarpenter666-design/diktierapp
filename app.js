@@ -3,6 +3,7 @@ import { openDB, saveEntry, listEntries, getEntry, deleteEntry, clearAll } from 
 import { buildMarkdown, buildHtml } from './export.js';
 
 const $ = (id) => document.getElementById(id);
+window.__appReady = true; // Diagnose-Falle: Modul hat geladen
 
 function status(msg) {
   const el = $('model-status');
