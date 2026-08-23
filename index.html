@@ -176,7 +176,13 @@ textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-2); 
       <option value="Xenova/whisper-base" selected>base (schneller, ~145 MB)</option>
       <option value="Xenova/whisper-small">small (genauer, ~490 MB)</option>
     </select>
-    <p class="hint">Alle Modelle laufen lokal auf dem Geraet. Keine Daten verlassen das Handy.</p>
+    <button id="btn-download-whisper" class="btn">Whisper jetzt herunterladen</button>
+    <p id="whisper-download-info" class="hint">Noch nicht geladen. Einmalig per WLAN herunterladen; danach offline nutzbar.</p>
+    <h3>Lokales KI-Modell</h3>
+    <button id="btn-download-llm" class="btn">KI-Modell jetzt herunterladen (~1 GB)</button>
+    <p id="llm-download-info" class="hint">Noch nicht geladen. Wird nur fuer Zusammenfassung und Protokolle gebraucht.</p>
+    <p id="settings-status" class="hint hidden" aria-live="polite"></p>
+    <p class="hint">Modelle und Diktate bleiben auf dem Geraet. Es gibt keine Cloud-Verarbeitung.</p>
     <h3>Verwaltung</h3>
     <button id="btn-clear-db" class="btn btn-danger">Alle Eintraege loeschen</button>
     <p class="app-info">Diktierapp &middot; 100% lokal &middot; Zimmermann KI Design</p>
@@ -224,6 +230,9 @@ function status(msg) {
   const el = $('model-status');
   el.textContent = msg;
   el.classList.toggle('hidden', !msg);
+  const settings = $('settings-status');
+  settings.textContent = msg;
+  settings.classList.toggle('hidden', !msg);
 }
 
 function toast(msg) {
@@ -388,8 +397,33 @@ async function loadWhisper() {
   });
   asrModelId = modelId;
   $('dl-progress').classList.add('hidden');
+  $('whisper-download-info').textContent = 'Whisper ist geladen und offline bereit.';
+  $('btn-download-whisper').textContent = 'Whisper geladen';
+  $('btn-download-whisper').disabled = true;
+  status('');
   return asrPipeline;
 }
+
+$('whisper-model').addEventListener('change', () => {
+  asrPipeline = null;
+  asrModelId = null;
+  $('whisper-download-info').textContent = 'Modellwahl geaendert. Dieses Modell noch herunterladen.';
+  $('btn-download-whisper').textContent = 'Whisper jetzt herunterladen';
+  $('btn-download-whisper').disabled = false;
+});
+
+$('btn-download-whisper').addEventListener('click', async () => {
+  $('btn-download-whisper').disabled = true;
+  try {
+    await loadWhisper();
+    toast('Whisper ist heruntergeladen und bereit');
+  } catch (err) {
+    $('btn-download-whisper').disabled = false;
+    $('whisper-download-info').textContent = 'Download fehlgeschlagen: ' + (err.message || err);
+    status('');
+    toast('Whisper-Download fehlgeschlagen');
+  }
+});
 
 async function transcribe(audioBlob) {
   try {
@@ -440,6 +474,9 @@ const LLM_MODEL = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 
 async function loadLlm() {
   if (llmEngine) return llmEngine;
+  if (!navigator.gpu) {
+    throw new Error('WebGPU ist in diesem Browser nicht verfuegbar. Chrome auf dem Pixel aktualisieren und Hardwarebeschleunigung pruefen.');
+  }
   status('Lade Sprachmodell (einmalig ~1 GB, danach offline)...');
   $('dl-progress').classList.remove('hidden');
   const webllm = await import('https://esm.run/@mlc-ai/web-llm');
@@ -450,8 +487,25 @@ async function loadLlm() {
     },
   });
   $('dl-progress').classList.add('hidden');
+  $('llm-download-info').textContent = 'KI-Modell ist geladen und offline bereit.';
+  $('btn-download-llm').textContent = 'KI-Modell geladen';
+  $('btn-download-llm').disabled = true;
+  status('');
   return llmEngine;
 }
+
+$('btn-download-llm').addEventListener('click', async () => {
+  $('btn-download-llm').disabled = true;
+  try {
+    await loadLlm();
+    toast('KI-Modell ist heruntergeladen und bereit');
+  } catch (err) {
+    $('btn-download-llm').disabled = false;
+    $('llm-download-info').textContent = 'Download fehlgeschlagen: ' + (err.message || err);
+    status('');
+    toast('KI-Modell-Download fehlgeschlagen');
+  }
+});
 
 async function runPrompt(prompt) {
   const engine = await loadLlm();
