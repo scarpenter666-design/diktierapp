@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e1a">
+<title>Diktierapp</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="app-header">
+  <h1>Diktierapp</h1>
+  <button id="btn-settings" class="icon-btn" aria-label="Einstellungen">&#9881;</button>
+</header>
+
+<main>
+  <!-- Ansicht: Diktieren -->
+  <section id="view-record" class="view">
+    <button id="btn-record" class="record-btn" aria-label="Aufnahme starten">
+      <span class="record-dot"></span>
+      <span id="record-label">Diktieren</span>
+    </button>
+    <div id="rec-timer" class="rec-timer hidden">00:00</div>
+
+    <div id="model-status" class="model-status hidden"></div>
+    <progress id="dl-progress" class="hidden" max="100" value="0"></progress>
+
+    <label class="field-label" for="transcript">Transkript (bearbeitbar)</label>
+    <textarea id="transcript" rows="8" placeholder="Gesprochener Text erscheint hier ..."></textarea>
+
+    <div class="action-row">
+      <button id="btn-summarize" class="btn">Zusammenfassen</button>
+      <button id="btn-protocol" class="btn">Protokoll erstellen</button>
+      <button id="btn-save" class="btn btn-secondary">Speichern</button>
+    </div>
+  </section>
+
+  <!-- Ansicht: Ergebnis -->
+  <section id="view-result" class="view hidden">
+    <div class="view-head">
+      <button id="btn-back" class="icon-btn" aria-label="Zurueck">&#8592;</button>
+      <h2 id="result-title">Protokoll</h2>
+    </div>
+    <input id="entry-title" class="title-input" type="text" placeholder="Titel des Eintrags">
+    <article id="result-content" class="result-content"></article>
+    <div class="action-row">
+      <button id="btn-export-md" class="btn">Markdown exportieren</button>
+      <button id="btn-export-html" class="btn btn-secondary">HTML exportieren</button>
+      <button id="btn-export-pdf" class="btn btn-secondary">PDF (Drucken)</button>
+    </div>
+  </section>
+
+  <!-- Ansicht: Verlauf -->
+  <section id="view-history" class="view hidden">
+    <h2>Verlauf</h2>
+    <ul id="history-list" class="history-list"></ul>
+  </section>
+
+  <!-- Ansicht: Einstellungen -->
+  <section id="view-settings" class="view hidden">
+    <div class="view-head">
+      <button id="btn-settings-back" class="icon-btn" aria-label="Zurueck">&#8592;</button>
+      <h2>Einstellungen</h2>
+    </div>
+    <label class="field-label" for="whisper-model">Whisper-Modell</label>
+    <select id="whisper-model">
+      <option value="Xenova/whisper-base" selected>base (schneller, ~145 MB)</option>
+      <option value="Xenova/whisper-small">small (genauer, ~490 MB)</option>
+    </select>
+    <p class="hint">Alle Modelle laufen lokal auf dem Geraet. Keine Daten verlassen das Handy.</p>
+    <h3>Verwaltung</h3>
+    <button id="btn-clear-db" class="btn btn-danger">Alle Eintraege loeschen</button>
+    <p class="app-info">Diktierapp &middot; 100% lokal &middot; Zimmermann KI Design</p>
+  </section>
+</main>
+
+<nav class="tab-bar">
+  <button class="tab active" data-view="view-record">Diktieren</button>
+  <button class="tab" data-view="view-history">Verlauf</button>
+</nav>
+
+<div id="toast" class="toast hidden"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
