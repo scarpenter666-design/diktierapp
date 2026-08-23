@@ -60,7 +60,10 @@ textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-2); 
   white-space: normal; overflow-wrap: break-word; min-width: 0;
 }
 @media (min-width: 420px) { .action-row.two .btn { flex: 1 1 0; } }
-.btn:disabled { opacity: 0.45; cursor: default; }
+.btn:disabled, .btn.model-loaded {
+  opacity: 1; cursor: default; background: #3a4458; color: #c5cedd;
+  border: 1px solid #53617a;
+}
 .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
 .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); }
 .result-content {
@@ -80,6 +83,17 @@ textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-2); 
 .history-list .entry-title { font-weight: 600; }
 .history-list .entry-date { font-size: 0.8rem; color: var(--text-dim); }
 .history-list .del-btn { background: none; border: none; color: var(--danger); font-size: 1rem; cursor: pointer; padding: 6px; }
+.library-list { list-style: none; }
+.library-list li {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 10px; cursor: pointer;
+}
+.library-list li:active { border-color: var(--accent); background: var(--surface-2); }
+.library-meta { color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; }
+.library-tags { color: var(--accent); font-size: 0.78rem; margin-top: 8px; }
+.saved-section { margin-top: 16px; }
+.saved-section h3 { color: var(--accent); margin-bottom: 7px; font-size: 0.95rem; }
+.saved-section .result-content { font-size: 0.94rem; }
 .tab-bar {
   position: fixed; bottom: 0; left: 0; right: 0;
   display: flex; background: var(--surface); border-top: 1px solid var(--border);
@@ -166,6 +180,23 @@ textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-2); 
     <ul id="history-list" class="history-list"></ul>
   </section>
 
+  <section id="view-library" class="view hidden">
+    <h2>Bibliothek</h2>
+    <p class="hint">Gespeicherte Diktate, Zusammenfassungen und Protokolle.</p>
+    <ul id="library-list" class="library-list"></ul>
+  </section>
+
+  <section id="view-library-detail" class="view hidden">
+    <div class="view-head">
+      <button id="btn-library-back" class="icon-btn" aria-label="Zur Bibliothek">&#8592;</button>
+      <h2 id="library-title">Eintrag</h2>
+    </div>
+    <button id="btn-library-play" class="btn btn-secondary hidden">Aufnahme abspielen</button>
+    <section id="library-transcript" class="saved-section"></section>
+    <section id="library-summary" class="saved-section"></section>
+    <section id="library-protocol" class="saved-section"></section>
+  </section>
+
   <section id="view-settings" class="view hidden">
     <div class="view-head">
       <button id="btn-settings-back" class="icon-btn" aria-label="Zurueck">&#8592;</button>
@@ -192,6 +223,7 @@ textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-2); 
 <nav class="tab-bar">
   <button class="tab active" data-view="view-record">Diktieren</button>
   <button class="tab" data-view="view-history">Verlauf</button>
+  <button class="tab" data-view="view-library">Bibliothek</button>
 </nav>
 
 <div id="toast" class="toast hidden"></div>
@@ -243,18 +275,23 @@ function toast(msg) {
 }
 
 // ---------- Ansichten ----------
-const views = ['view-record', 'view-result', 'view-history', 'view-settings'];
+const views = ['view-record', 'view-result', 'view-history', 'view-library', 'view-library-detail', 'view-settings'];
 function show(viewId) {
   views.forEach(v => $(v).classList.toggle('hidden', v !== viewId));
   document.querySelectorAll('.tab').forEach(t =>
     t.classList.toggle('active', t.dataset.view === viewId));
 }
 document.querySelectorAll('.tab').forEach(t =>
-  t.addEventListener('click', () => { if (t.dataset.view === 'view-history') renderHistory(); show(t.dataset.view); }));
+  t.addEventListener('click', () => {
+    if (t.dataset.view === 'view-history') renderHistory();
+    if (t.dataset.view === 'view-library') renderLibrary();
+    show(t.dataset.view);
+  }));
 
 $('btn-settings').addEventListener('click', () => show('view-settings'));
 $('btn-settings-back').addEventListener('click', () => show('view-record'));
 $('btn-back').addEventListener('click', () => show('view-record'));
+$('btn-library-back').addEventListener('click', () => { renderLibrary(); show('view-library'); });
 
 // ---------- IndexedDB ----------
 const DB_NAME = 'diktierapp';
@@ -347,6 +384,7 @@ $('btn-play').addEventListener('click', () => {
 });
 
 $('btn-play-result').addEventListener('click', () => $('btn-play').click());
+$('btn-library-play').addEventListener('click', () => $('btn-play').click());
 
 $('btn-record').addEventListener('click', async () => {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -393,8 +431,10 @@ function refreshWhisperStatus() {
   $('whisper-download-info').textContent = ready
     ? 'Dieses Whisper-Modell wurde bereits heruntergeladen und ist offline bereit.'
     : 'Noch nicht geladen. Einmalig per WLAN herunterladen; danach offline nutzbar.';
-  $('btn-download-whisper').textContent = ready ? 'Whisper bereits geladen' : 'Whisper jetzt herunterladen';
-  $('btn-download-whisper').disabled = ready;
+  const button = $('btn-download-whisper');
+  button.textContent = ready ? 'Download erfolgt - Whisper bereit' : 'Whisper jetzt herunterladen';
+  button.disabled = ready;
+  button.classList.toggle('model-loaded', ready);
 }
 
 async function loadWhisper() {
@@ -506,8 +546,10 @@ function refreshLlmStatus() {
   $('llm-download-info').textContent = ready
     ? 'Das lokale KI-Modell wurde bereits heruntergeladen und ist offline bereit.'
     : 'Noch nicht geladen. Wird nur fuer Zusammenfassung und Protokolle gebraucht.';
-  $('btn-download-llm').textContent = ready ? 'KI-Modell bereits geladen' : 'KI-Modell jetzt herunterladen (~1 GB)';
-  $('btn-download-llm').disabled = ready;
+  const button = $('btn-download-llm');
+  button.textContent = ready ? 'Download erfolgt - KI-Modell bereit' : 'KI-Modell jetzt herunterladen (~1 GB)';
+  button.disabled = ready;
+  button.classList.toggle('model-loaded', ready);
 }
 
 async function loadLlm() {
@@ -588,6 +630,8 @@ function ensureProtocolContent(markdown, rawText) {
 
 // ---------- Ergebnis ----------
 let currentResult = null;
+let currentSummary = '';
+let currentProtocol = '';
 
 $('entry-title').addEventListener('input', () => {
   if (currentResult) currentResult.title = $('entry-title').value;
@@ -599,6 +643,7 @@ $('btn-summarize').addEventListener('click', async () => {
   setBusy(true);
   try {
     const md = await runPrompt(SUMMARIZE_PROMPT(text));
+    currentSummary = md;
     setResult($('entry-title').value || 'Zusammenfassung', md);
     toast('Zusammenfassung fertig');
   } catch (err) { console.error(err); toast('Fehler: ' + err.message); }
@@ -611,6 +656,7 @@ $('btn-protocol').addEventListener('click', async () => {
   setBusy(true);
   try {
     const md = ensureProtocolContent(await runPrompt(PROTOCOL_PROMPT(text)), text);
+    currentProtocol = md;
     const m = md.match(/^#\s+(.+)$/m);
     setResult(m ? m[1] : 'Protokoll', md);
     toast('Protokoll erstellt');
@@ -647,11 +693,26 @@ $('btn-save').addEventListener('click', async () => {
     transcript: text,
     resultTitle: currentResult ? currentResult.title : '',
     resultMd: currentResult ? currentResult.markdown : '',
+    summaryMd: currentSummary,
+    protocolMd: currentProtocol,
     // Blob wird direkt in IndexedDB gespeichert: keine Cloud, auch nach App-Neustart abspielbar.
     audio: lastAudioBlob,
   });
   toast(lastAudioBlob ? 'Eintrag mit Aufnahme gespeichert' : 'Eintrag gespeichert');
+  resetDraft();
 });
+
+function resetDraft() {
+  $('transcript').value = '';
+  $('entry-title').value = '';
+  currentResult = null;
+  currentSummary = '';
+  currentProtocol = '';
+  lastAudioBlob = null;
+  if (audioElement) audioElement.pause();
+  $('btn-play').textContent = '\u25B6';
+  updatePlayBar();
+}
 
 async function renderHistory() {
   const entries = await listEntries();
@@ -668,6 +729,8 @@ async function renderHistory() {
     meta.addEventListener('click', () => {
       $('transcript').value = e.transcript || '';
       lastAudioBlob = e.audio instanceof Blob ? e.audio : null;
+      currentSummary = e.summaryMd || '';
+      currentProtocol = e.protocolMd || '';
       updatePlayBar();
       setResult(e.resultTitle || e.title, e.resultMd || '');
       show('view-result');
@@ -684,6 +747,65 @@ async function renderHistory() {
     li.appendChild(del);
     ul.appendChild(li);
   }
+}
+
+async function renderLibrary() {
+  const entries = await listEntries();
+  entries.sort((a, b) => b.createdAt - a.createdAt);
+  const list = $('library-list');
+  list.innerHTML = '';
+  if (!entries.length) {
+    const empty = document.createElement('li');
+    empty.textContent = 'Noch keine gespeicherten Eintraege.';
+    list.appendChild(empty);
+    return;
+  }
+  for (const entry of entries) {
+    const item = document.createElement('li');
+    const title = document.createElement('strong');
+    title.textContent = entry.title;
+    const meta = document.createElement('div');
+    meta.className = 'library-meta';
+    meta.textContent = new Date(entry.createdAt).toLocaleString('de-DE');
+    const tags = [];
+    if (entry.transcript) tags.push('Transkript');
+    if (entry.summaryMd) tags.push('Zusammenfassung');
+    if (entry.protocolMd || entry.resultMd) tags.push('Protokoll/Ergebnis');
+    if (entry.audio instanceof Blob) tags.push('Audio');
+    const tagLine = document.createElement('div');
+    tagLine.className = 'library-tags';
+    tagLine.textContent = tags.join(' · ');
+    item.append(title, meta, tagLine);
+    item.addEventListener('click', () => openLibraryEntry(entry));
+    list.appendChild(item);
+  }
+}
+
+function showSavedSection(id, title, content, markdown) {
+  const section = $(id);
+  section.innerHTML = '';
+  if (!content) {
+    section.classList.add('hidden');
+    return;
+  }
+  section.classList.remove('hidden');
+  const heading = document.createElement('h3');
+  heading.textContent = title;
+  const body = document.createElement('article');
+  body.className = 'result-content';
+  if (markdown) body.innerHTML = renderMarkdownLite(content);
+  else body.textContent = content;
+  section.append(heading, body);
+}
+
+function openLibraryEntry(entry) {
+  $('library-title').textContent = entry.title;
+  lastAudioBlob = entry.audio instanceof Blob ? entry.audio : null;
+  $('btn-library-play').classList.toggle('hidden', !lastAudioBlob);
+  showSavedSection('library-transcript', 'Transkript', entry.transcript || '', false);
+  showSavedSection('library-summary', 'Zusammenfassung', entry.summaryMd || '', true);
+  showSavedSection('library-protocol', 'Protokoll', entry.protocolMd || entry.resultMd || '', true);
+  show('view-library-detail');
 }
 
 $('btn-clear-db').addEventListener('click', async () => {
