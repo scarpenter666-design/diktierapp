@@ -305,13 +305,16 @@ let timerHandle = null;
 let lastAudioBlob = null;
 let audioElement = null;
 let audioObjectUrl = null;
+let playbackContext = null;
+let playbackGain = null;
+const PLAYBACK_BOOST = 2.5;
 
 function updatePlayBar() {
   const bar = $('play-bar');
   if (lastAudioBlob) {
     bar.classList.remove('hidden');
     $('play-info').textContent =
-      'Aufnahme (' + Math.round(lastAudioBlob.size / 1024) + ' KB) - abspielbar';
+      'Aufnahme (' + Math.round(lastAudioBlob.size / 1024) + ' KB) - Wiedergabe 2,5x verstaerkt';
   } else {
     bar.classList.add('hidden');
   }
@@ -327,10 +330,18 @@ $('btn-play').addEventListener('click', () => {
   if (!audioElement) {
     audioElement = new Audio();
     audioElement.onended = () => { $('btn-play').textContent = '\u25B6'; };
+    // Die Originaldatei bleibt unveraendert; nur die Wiedergabe wird angehoben.
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    playbackContext = new AudioCtx();
+    playbackGain = playbackContext.createGain();
+    playbackGain.gain.value = PLAYBACK_BOOST;
+    const source = playbackContext.createMediaElementSource(audioElement);
+    source.connect(playbackGain).connect(playbackContext.destination);
   }
   if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
   audioObjectUrl = URL.createObjectURL(lastAudioBlob);
   audioElement.src = audioObjectUrl;
+  playbackContext.resume();
   audioElement.play();
   $('btn-play').textContent = '\u23F8';
 });
