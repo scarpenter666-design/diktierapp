@@ -7,8 +7,104 @@
 <title>Diktierapp</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="styles.css">
+<style>
+/* Diktierapp - dunkles Design (Zimmermann KI Design) */
+:root {
+  --bg: #0a0e1a; --surface: #121829; --surface-2: #1a2236; --border: #26314d;
+  --text: #e8ecf5; --text-dim: #8b96ad; --accent: #4fd1c5; --accent-2: #6b8afd;
+  --danger: #f26d6d; --radius: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.app-header h1 { font-size: 1.15rem; letter-spacing: 0.04em; }
+main { padding: 16px; max-width: 640px; margin: 0 auto; }
+.view-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.view-head h2 { font-size: 1.1rem; }
+.icon-btn {
+  background: none; border: 1px solid var(--border); color: var(--text);
+  border-radius: 10px; width: 38px; height: 38px; font-size: 1.1rem; cursor: pointer;
+}
+.record-btn {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%; padding: 20px; font-size: 1.15rem; font-weight: 600;
+  color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;
+}
+.record-btn .record-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--danger); }
+.record-btn.recording { border-color: var(--danger); }
+.record-btn.recording .record-dot { animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+.rec-timer { text-align: center; margin-top: 8px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.model-status { margin-top: 10px; color: var(--text-dim); font-size: 0.9rem; text-align: center; }
+progress { width: 100%; height: 6px; margin-top: 6px; accent-color: var(--accent); }
+.field-label { display: block; margin: 16px 0 6px; font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+textarea, input[type="text"], select {
+  width: 100%; padding: 12px; font: inherit; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-2); }
+.action-row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.btn {
+  flex: 1 1 100%; padding: 12px 10px; font: inherit; font-weight: 600;
+  color: #06231f; background: var(--accent);
+  border: none; border-radius: var(--radius); cursor: pointer;
+  white-space: normal; overflow-wrap: break-word; min-width: 0;
+}
+@media (min-width: 420px) { .action-row.two .btn { flex: 1 1 0; } }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); }
+.result-content {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; line-height: 1.55; white-space: pre-wrap;
+}
+.result-content h3 { color: var(--accent); margin: 14px 0 4px; font-size: 0.95rem; }
+.result-content h3:first-child { margin-top: 0; }
+.title-input { margin-bottom: 12px; font-weight: 600; }
+.history-list { list-style: none; }
+.history-list li {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.history-list .entry-meta { flex: 1; cursor: pointer; }
+.history-list .entry-title { font-weight: 600; }
+.history-list .entry-date { font-size: 0.8rem; color: var(--text-dim); }
+.history-list .del-btn { background: none; border: none; color: var(--danger); font-size: 1rem; cursor: pointer; padding: 6px; }
+.tab-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: flex; background: var(--surface); border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tab { flex: 1; padding: 14px; background: none; border: none; color: var(--text-dim); font: inherit; cursor: pointer; }
+.tab.active { color: var(--accent); font-weight: 600; }
+.toast {
+  position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
+  background: var(--surface-2); border: 1px solid var(--border);
+  padding: 10px 18px; border-radius: 999px; font-size: 0.9rem; z-index: 50;
+}
+.hidden { display: none !important; }
+.errbox {
+  position: fixed; top: 12px; left: 12px; right: 12px; z-index: 100;
+  background: #3a1420; border: 1px solid var(--danger); color: #ffd9d9;
+  padding: 12px; border-radius: var(--radius); font-size: 0.9rem;
+}
+.hint { margin-top: 8px; font-size: 0.85rem; color: var(--text-dim); }
+.app-info { margin-top: 24px; text-align: center; font-size: 0.8rem; color: var(--text-dim); }
+@media print {
+  body { background: #fff; color: #000; }
+  .app-header, .tab-bar, .action-row, .view-head button { display: none !important; }
+}
+</style>
 </head>
 <body>
 <header class="app-header">
@@ -17,7 +113,6 @@
 </header>
 
 <main>
-  <!-- Ansicht: Diktieren -->
   <section id="view-record" class="view">
     <button id="btn-record" class="record-btn" aria-label="Aufnahme starten">
       <span class="record-dot"></span>
@@ -40,7 +135,6 @@
     </div>
   </section>
 
-  <!-- Ansicht: Ergebnis -->
   <section id="view-result" class="view hidden">
     <div class="view-head">
       <button id="btn-back" class="icon-btn" aria-label="Zurueck">&#8592;</button>
@@ -55,13 +149,11 @@
     </div>
   </section>
 
-  <!-- Ansicht: Verlauf -->
   <section id="view-history" class="view hidden">
     <h2>Verlauf</h2>
     <ul id="history-list" class="history-list"></ul>
   </section>
 
-  <!-- Ansicht: Einstellungen -->
   <section id="view-settings" class="view hidden">
     <div class="view-head">
       <button id="btn-settings-back" class="icon-btn" aria-label="Zurueck">&#8592;</button>
@@ -88,30 +180,406 @@
 <div id="errbox" class="errbox hidden"></div>
 
 <script>
-// Diagnose-Falle: sichtbare Fehlermeldung, falls das App-Modul nicht startet.
+// Diagnose-Falle: sichtbare Fehlermeldung, falls das App-Skript nicht laeuft.
 window.addEventListener('error', function (e) {
+  if (window.__appReady) return;
   var box = document.getElementById('errbox');
-  if (!box || window.__appReady) return;
   box.classList.remove('hidden');
   box.textContent = 'Fehler: ' + (e.message || e.type);
 });
 window.addEventListener('unhandledrejection', function (e) {
+  if (window.__appReady) return;
   var box = document.getElementById('errbox');
-  if (!box || window.__appReady) return;
   box.classList.remove('hidden');
   box.textContent = 'Fehler: ' + (e.reason && e.reason.message ? e.reason.message : e.reason);
 });
 setTimeout(function () {
   if (!window.__appReady) {
     var box = document.getElementById('errbox');
-    if (box) {
-      box.classList.remove('hidden');
-      box.innerHTML = 'App-Skript nicht geladen (vermutlich Netzwerk/Cache).<br>' +
-        '<button onclick="location.reload(true)" style="margin-top:8px;padding:10px 16px;font-size:1rem;">Neu laden</button>';
-    }
+    box.classList.remove('hidden');
+    box.innerHTML = 'App nicht geladen.<br><button onclick="location.reload()" style="margin-top:8px;padding:10px 16px;font-size:1rem;">Neu laden</button>';
   }
 }, 5000);
 </script>
-<script type="module" src="app.js"></script>
+
+<script>
+'use strict';
+window.__appReady = true;
+
+const $ = (id) => document.getElementById(id);
+
+function status(msg) {
+  const el = $('model-status');
+  el.textContent = msg;
+  el.classList.toggle('hidden', !msg);
+}
+
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 2500);
+}
+
+// ---------- Ansichten ----------
+const views = ['view-record', 'view-result', 'view-history', 'view-settings'];
+function show(viewId) {
+  views.forEach(v => $(v).classList.toggle('hidden', v !== viewId));
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.view === viewId));
+}
+document.querySelectorAll('.tab').forEach(t =>
+  t.addEventListener('click', () => { if (t.dataset.view === 'view-history') renderHistory(); show(t.dataset.view); }));
+
+$('btn-settings').addEventListener('click', () => show('view-settings'));
+$('btn-settings-back').addEventListener('click', () => show('view-record'));
+$('btn-back').addEventListener('click', () => show('view-record'));
+
+// ---------- IndexedDB ----------
+const DB_NAME = 'diktierapp';
+const STORE = 'entries';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      req.result.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function tx(mode, fn) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(STORE, mode);
+    const store = t.objectStore(STORE);
+    const out = fn(store);
+    t.oncomplete = () => resolve(out && out.result !== undefined ? out.result : null);
+    t.onerror = () => reject(t.error);
+  });
+}
+
+async function saveEntry(entry) {
+  entry.createdAt = Date.now();
+  return tx('readwrite', (s) => s.add(entry));
+}
+async function listEntries() {
+  const r = await tx('readonly', (s) => s.getAll());
+  return r || [];
+}
+async function deleteEntry(id) {
+  return tx('readwrite', (s) => s.delete(id));
+}
+async function clearAllEntries() {
+  return tx('readwrite', (s) => s.clear());
+}
+
+// ---------- Aufnahme ----------
+let mediaRecorder = null;
+let chunks = [];
+let recStart = 0;
+let timerHandle = null;
+
+$('btn-record').addEventListener('click', async () => {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearInterval(timerHandle);
+      $('btn-record').classList.remove('recording');
+      $('record-label').textContent = 'Diktieren';
+      $('rec-timer').classList.add('hidden');
+      const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      await transcribe(blob);
+    };
+    mediaRecorder.start();
+    $('btn-record').classList.add('recording');
+    $('record-label').textContent = 'Stopp';
+    recStart = Date.now();
+    $('rec-timer').classList.remove('hidden');
+    timerHandle = setInterval(() => {
+      const s = Math.floor((Date.now() - recStart) / 1000);
+      $('rec-timer').textContent =
+        String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+    }, 500);
+  } catch (err) {
+    toast('Mikrofon nicht verfuegbar: ' + err.message);
+  }
+});
+
+// ---------- Whisper (transformers.js, lokal im Browser) ----------
+let asrPipeline = null;
+let asrModelId = null;
+
+async function loadWhisper() {
+  const modelId = $('whisper-model').value;
+  if (asrPipeline && asrModelId === modelId) return asrPipeline;
+
+  status('Lade Whisper-Modell (einmalig, danach offline nutzbar)...');
+  $('dl-progress').classList.remove('hidden');
+  const mod = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.1');
+  mod.env.allowLocalModels = false;
+  asrPipeline = await mod.pipeline('automatic-speech-recognition', modelId, {
+    dtype: 'q8',
+    progress_callback: (p) => {
+      if (p.status === 'progress' && p.total) {
+        const pct = Math.round((p.loaded / p.total) * 100);
+        $('dl-progress').value = pct;
+        status(p.file + ': ' + pct + '%');
+      }
+    },
+  });
+  asrModelId = modelId;
+  $('dl-progress').classList.add('hidden');
+  return asrPipeline;
+}
+
+async function transcribe(audioBlob) {
+  try {
+    const pipe = await loadWhisper();
+    status('Transkribiere ...');
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const decoded = await ctx.decodeAudioData(arrayBuffer);
+    const wav = encodeWav(decoded.getChannelData(0), decoded.sampleRate);
+    const out = await pipe(wav, { language: 'german', task: 'transcribe' });
+    $('transcript').value = ($('transcript').value ? $('transcript').value + ' ' : '') + out.text.trim();
+    status('');
+    toast('Transkription fertig');
+  } catch (err) {
+    console.error(err);
+    status('');
+    toast('Transkription fehlgeschlagen: ' + err.message);
+  }
+}
+
+function encodeWav(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+  writeStr(0, 'RIFF'); view.setUint32(4, 36 + samples.length * 2, true); writeStr(8, 'WAVE');
+  writeStr(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  writeStr(36, 'data'); view.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+// ---------- Lokales LLM (WebLLM) ----------
+let llmEngine = null;
+const LLM_MODEL = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
+
+async function loadLlm() {
+  if (llmEngine) return llmEngine;
+  status('Lade Sprachmodell (einmalig ~1 GB, danach offline)...');
+  $('dl-progress').classList.remove('hidden');
+  const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+  llmEngine = await webllm.CreateMLCEngine(LLM_MODEL, {
+    initProgressCallback: (p) => {
+      $('dl-progress').value = Math.round(p.progress * 100);
+      if (p.text) status(p.text.split('(')[0]);
+    },
+  });
+  $('dl-progress').classList.add('hidden');
+  return llmEngine;
+}
+
+async function runPrompt(prompt) {
+  const engine = await loadLlm();
+  const res = await engine.chat.completions.create({
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.3,
+    max_tokens: 900,
+  });
+  return res.choices[0].message.content;
+}
+
+const SUMMARIZE_PROMPT = (text) =>
+  'Fasse den folgenden deutschen Diktat-Text klar und sachlich in Stichpunkten zusammen. Antworte auf Deutsch.\n\nText:\n' + text;
+
+const PROTOCOL_PROMPT = (text) =>
+  'Erstelle aus dem folgenden deutschen Diktat ein Protokoll in exakt dieser Markdown-Struktur:\n' +
+  '# <Titel>\n## Thema\n## Kernaussagen\n## Entscheidungen\n## To-dos\n' +
+  'Verwende nur Informationen aus dem Text. Wenn eine Sektion keine Inhalte hat, schreibe "-". Antworte nur mit dem Protokoll.\n\nText:\n' + text;
+
+// ---------- Ergebnis ----------
+let currentResult = null;
+
+$('entry-title').addEventListener('input', () => {
+  if (currentResult) currentResult.title = $('entry-title').value;
+});
+
+$('btn-summarize').addEventListener('click', async () => {
+  const text = $('transcript').value.trim();
+  if (!text) { toast('Kein Text zum Zusammenfassen'); return; }
+  setBusy(true);
+  try {
+    const md = await runPrompt(SUMMARIZE_PROMPT(text));
+    setResult($('entry-title').value || 'Zusammenfassung', md);
+    toast('Zusammenfassung fertig');
+  } catch (err) { console.error(err); toast('Fehler: ' + err.message); }
+  setBusy(false);
+});
+
+$('btn-protocol').addEventListener('click', async () => {
+  const text = $('transcript').value.trim();
+  if (!text) { toast('Kein Text fuer ein Protokoll'); return; }
+  setBusy(true);
+  try {
+    const md = await runPrompt(PROTOCOL_PROMPT(text));
+    const m = md.match(/^#\s+(.+)$/m);
+    setResult(m ? m[1] : 'Protokoll', md);
+    toast('Protokoll erstellt');
+  } catch (err) { console.error(err); toast('Fehler: ' + err.message); }
+  setBusy(false);
+});
+
+function setResult(title, markdown) {
+  currentResult = { title, markdown };
+  $('entry-title').value = title;
+  $('result-content').innerHTML = renderMarkdownLite(markdown);
+  show('view-result');
+}
+
+function renderMarkdownLite(md) {
+  return String(md)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/^#{1,3} (.*)$/gm, '<h3>$1</h3>')
+    .replace(/^\s*[-*] (.*)$/gm, '&bull; $1<br>');
+}
+
+function setBusy(busy) {
+  ['btn-summarize', 'btn-protocol'].forEach(id => $(id).disabled = busy);
+  if (busy) status('Arbeite ...'); else status('');
+}
+
+// ---------- Speichern / Verlauf ----------
+$('btn-save').addEventListener('click', async () => {
+  const text = $('transcript').value.trim();
+  if (!text && !currentResult) { toast('Nichts zu speichern'); return; }
+  await saveEntry({
+    title: $('entry-title').value || 'Eintrag ' + new Date().toLocaleString('de-DE'),
+    transcript: text,
+    resultTitle: currentResult ? currentResult.title : '',
+    resultMd: currentResult ? currentResult.markdown : '',
+  });
+  toast('Gespeichert');
+});
+
+async function renderHistory() {
+  const entries = await listEntries();
+  entries.sort((a, b) => b.createdAt - a.createdAt);
+  const ul = $('history-list');
+  ul.innerHTML = '';
+  for (const e of entries) {
+    const li = document.createElement('li');
+    const meta = document.createElement('div');
+    meta.className = 'entry-meta';
+    meta.innerHTML = '<div class="entry-title"></div><div class="entry-date"></div>';
+    meta.querySelector('.entry-title').textContent = e.title;
+    meta.querySelector('.entry-date').textContent = new Date(e.createdAt).toLocaleString('de-DE');
+    meta.addEventListener('click', () => {
+      $('transcript').value = e.transcript || '';
+      setResult(e.resultTitle || e.title, e.resultMd || '');
+      show('view-result');
+    });
+    const del = document.createElement('button');
+    del.className = 'del-btn';
+    del.textContent = '\u2715';
+    del.addEventListener('click', async () => {
+      await deleteEntry(e.id);
+      renderHistory();
+      toast('Geloescht');
+    });
+    li.appendChild(meta);
+    li.appendChild(del);
+    ul.appendChild(li);
+  }
+}
+
+$('btn-clear-db').addEventListener('click', async () => {
+  if (!confirm('Wirklich alle Eintraege loeschen?')) return;
+  await clearAllEntries();
+  toast('Alle Eintraege geloescht');
+});
+
+// ---------- Export ----------
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+function buildMarkdown(result, transcript) {
+  let md = '# ' + result.title + '\n\n_' + new Date().toLocaleString('de-DE') + '_\n\n' + result.markdown;
+  if (transcript) md += '\n\n## Original-Diktat\n\n' + transcript;
+  return md;
+}
+
+function mdToHtml(md) {
+  return md.split('\n').map((line) => {
+    if (/^#{1,3} /.test(line)) {
+      const level = Math.min(3, line.match(/^#+/)[0].length);
+      return '<h' + level + '>' + esc(line.replace(/^#+ /, '')) + '</h' + level + '>';
+    }
+    if (/^\s*[-*] /.test(line)) return '<li>' + esc(line.replace(/^\s*[-*] /, '')) + '</li>';
+    if (!line.trim()) return '';
+    return '<p>' + esc(line) + '</p>';
+  }).join('\n');
+}
+
+function buildHtmlExport(result) {
+  return '<!DOCTYPE html>\n<html lang="de">\n<head>\n<meta charset="UTF-8">\n<title>' + esc(result.title) + '</title>\n' +
+    '<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.6;color:#1a2233;}h1{border-bottom:2px solid #4fd1c5;padding-bottom:8px;}.meta{color:#667;font-size:0.9rem;}h3{color:#0d7a70;margin-top:24px;}</style>\n' +
+    '</head>\n<body>\n<h1>' + esc(result.title) + '</h1>\n<p class="meta">' + new Date().toLocaleString('de-DE') + '</p>\n' +
+    mdToHtml(result.markdown) + '\n</body>\n</html>';
+}
+
+$('btn-export-md').addEventListener('click', async () => {
+  if (!currentResult) { toast('Kein Ergebnis vorhanden'); return; }
+  const md = buildMarkdown(currentResult, $('transcript').value);
+  await shareOrDownload(md, 'text/markdown', safeName(currentResult.title) + '.md');
+});
+$('btn-export-html').addEventListener('click', async () => {
+  if (!currentResult) { toast('Kein Ergebnis vorhanden'); return; }
+  await shareOrDownload(buildHtmlExport(currentResult), 'text/html', safeName(currentResult.title) + '.html');
+});
+$('btn-export-pdf').addEventListener('click', () => window.print());
+
+async function shareOrDownload(content, mime, filename) {
+  const file = new File([content], filename, { type: mime });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: filename }); return; } catch (_) {}
+  }
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function safeName(s) {
+  return (s || 'export').replace(/[^\w\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df -]/g, '').trim() || 'export';
+}
+</script>
+
+<script>
+// ---------- Service Worker ----------
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+  setInterval(() => {
+    navigator.serviceWorker.getRegistration().then((reg) => reg && reg.update());
+  }, 60000);
+  navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+}
+</script>
 </body>
 </html>
