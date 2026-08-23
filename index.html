@@ -93,6 +93,12 @@ textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-2); 
   padding: 10px 18px; border-radius: 999px; font-size: 0.9rem; z-index: 50;
 }
 .hidden { display: none !important; }
+.play-bar {
+  display: flex; align-items: center; gap: 10px; margin-top: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 12px;
+}
+.play-info { color: var(--text-dim); font-size: 0.85rem; }
 .errbox {
   position: fixed; top: 12px; left: 12px; right: 12px; z-index: 100;
   background: #3a1420; border: 1px solid var(--danger); color: #ffd9d9;
@@ -122,6 +128,11 @@ textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-2); 
 
     <div id="model-status" class="model-status hidden"></div>
     <progress id="dl-progress" class="hidden" max="100" value="0"></progress>
+
+    <div id="play-bar" class="play-bar hidden">
+      <button id="btn-play" class="icon-btn" aria-label="Aufnahme abspielen">&#9654;</button>
+      <span id="play-info" class="play-info">Aufnahme</span>
+    </div>
 
     <label class="field-label" for="transcript">Transkript (bearbeitbar)</label>
     <textarea id="transcript" rows="8" placeholder="Gesprochener Text erscheint hier ..."></textarea>
@@ -281,6 +292,35 @@ let mediaRecorder = null;
 let chunks = [];
 let recStart = 0;
 let timerHandle = null;
+let lastAudioBlob = null;
+let audioElement = null;
+
+function updatePlayBar() {
+  const bar = $('play-bar');
+  if (lastAudioBlob) {
+    bar.classList.remove('hidden');
+    $('play-info').textContent =
+      'Aufnahme (' + Math.round(lastAudioBlob.size / 1024) + ' KB) - abspielbar';
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+$('btn-play').addEventListener('click', () => {
+  if (!lastAudioBlob) return;
+  if (audioElement && !audioElement.paused) {
+    audioElement.pause();
+    $('btn-play').textContent = '\u25B6';
+    return;
+  }
+  if (!audioElement) {
+    audioElement = new Audio();
+    audioElement.onended = () => { $('btn-play').textContent = '\u25B6'; };
+  }
+  audioElement.src = URL.createObjectURL(lastAudioBlob);
+  audioElement.play();
+  $('btn-play').textContent = '\u23F8';
+});
 
 $('btn-record').addEventListener('click', async () => {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -299,6 +339,8 @@ $('btn-record').addEventListener('click', async () => {
       $('record-label').textContent = 'Diktieren';
       $('rec-timer').classList.add('hidden');
       const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      lastAudioBlob = blob;
+      updatePlayBar();
       await transcribe(blob);
     };
     mediaRecorder.start();
@@ -345,6 +387,10 @@ async function loadWhisper() {
 
 async function transcribe(audioBlob) {
   try {
+    if (!window.__whisperHinweisGezeigt) {
+      toast('Erster Start: Whisper-Modell wird geladen (~145 MB, WLAN empfohlen)');
+      window.__whisperHinweisGezeigt = true;
+    }
     const pipe = await loadWhisper();
     status('Transkribiere ...');
     const arrayBuffer = await audioBlob.arrayBuffer();
@@ -358,7 +404,11 @@ async function transcribe(audioBlob) {
   } catch (err) {
     console.error(err);
     status('');
-    toast('Transkription fehlgeschlagen: ' + err.message);
+    let hinweis = err.message;
+    if (/fetch|Failed to fetch|network|Load failed/i.test(err.message)) {
+      hinweis = 'Modell-Download fehlgeschlagen (Netzwerk). WLAN pruefen und erneut aufnehmen.';
+    }
+    toast('Transkription fehlgeschlagen: ' + hinweis);
   }
 }
 
